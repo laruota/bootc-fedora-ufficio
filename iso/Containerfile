@@ -1,0 +1,69 @@
+# Installer container for bootc-fedora-ufficio.
+#
+# It is a MINIMAL bootc image (Fedora Silverblue base + Anaconda + the tools
+# image-builder needs to pack an ISO). image-builder then "explodes" this
+# container into a bootable ISO with --type bootc-generic-iso.
+#
+# The office payload (the full bootc-fedora-ufficio image) is NOT baked into the
+# installer: the kickstart in interactive-defaults.ks installs it by pulling
+# from the registry at install time (online install). This keeps the ISO small.
+#
+# Based on the upstream example:
+#   https://osbuild.org/docs/developer-guide/projects/image-builder/advanced/bootc/isos
+#
+# Build: make installer   (from the repo root)
+
+ARG FEDORA_VERSION=45
+FROM quay.io/fedora/fedora-silverblue:${FEDORA_VERSION}
+
+# Anaconda (installer) + the executables required by bootc-generic-iso.
+RUN dnf5 install -y \
+        anaconda \
+        anaconda-install-img-deps \
+        anaconda-dracut \
+        dracut-config-generic \
+        dracut-network \
+        net-tools \
+        grub2-efi-x64-cdboot \
+        plymouth \
+        default-fonts-core-sans \
+        default-fonts-other-sans \
+        google-noto-sans-cjk-fonts \
+        isomd5sum \
+        xorriso \
+        squashfs-tools \
+    && dnf5 clean all
+
+# shim + grub2 EFI binaries in the place image-builder expects them.
+RUN mkdir -p /boot/efi && cp -ra /usr/lib/efi/*/*/EFI /boot/efi
+
+# ISO label + GRUB boot entry (used by image-builder)
+COPY iso.yaml /usr/lib/image-builder/bootc/iso.yaml
+
+# Kickstart used by the live installer: install this bootc image
+COPY interactive-defaults.ks /usr/share/anaconda/interactive-defaults.ks
+
+# --- Bare-minimum lorax-like setup so Anaconda runs from the ISO -------------
+RUN echo "install:x:0:0:root:/root:/usr/libexec/anaconda/run-anaconda" >> /etc/passwd && \
+    echo "install::14438:0:99999:7:::" >> /etc/shadow && \
+    passwd -d root
+
+RUN mv /usr/share/anaconda/list-harddrives-stub /usr/bin/list-harddrives && \
+    mv /etc/yum.repos.d /etc/anaconda.repos.d && \
+    ln -s /lib/systemd/system/anaconda.target /etc/systemd/system/default.target && \
+    rm -f /usr/lib/systemd/system-generators/systemd-gpt-auto-generator
+
+RUN ln -s /usr/lib/systemd/system/anaconda-shell@.service /usr/lib/systemd/system/autovt@.service
+
+RUN mkdir -p /usr/lib/systemd/logind.conf.d \
+             /etc/systemd/user/pipewire.service.d \
+             /etc/systemd/user/pipewire.socket.d && \
+    printf '[Login]\nReserveVT=2\n' > /usr/lib/systemd/logind.conf.d/anaconda-shell.conf && \
+    printf '[Unit]\nConditionUser=\n' > /etc/systemd/user/pipewire.service.d/allowroot.conf && \
+    printf '[Unit]\nConditionUser=\n' > /etc/systemd/user/pipewire.socket.d/allowroot.conf
+
+# Rebuild the initramfs including the Anaconda module
+RUN mkdir -p "$(realpath /root)" && \
+    kernel="$(ls -1 /usr/lib/modules | head -n1)" && \
+    DRACUT_NO_XATTR=1 dracut --force -v --zstd --reproducible --no-hostonly \
+        --add anaconda "/usr/lib/modules/${kernel}/initramfs.img" "${kernel}"

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ripristina Backup Utente
+Comment=Ripristina la home utente da backup NAS
+Exec=/usr/local/bin/ripristina-backup-home.sh
+Icon=document-save-as-symbolic
+Terminal=false
+Categories=Utility;System;

@@ -1,0 +1,16 @@
+# NOTE: the live environment must boot with SELinux *permissive*. The installer
+# squashfs is not labeled for a live system, so under enforcing systemd freezes
+# ("Failed to allocate manager object: Permission denied"; it cannot set its own
+# contexts under /run, /dev, ...). We therefore pass `enforcing=0`, which is also
+# what image-builder puts in the default kernel opts for bootc-generic-iso.
+#
+# We deliberately do NOT use `selinux=0`: that makes Anaconda install with
+# `bootc install --disable-selinux` and leaves SELinux disabled on the target
+# (bootc SELinuxFinalState::ForceTargetDisabled). `enforcing=0` is permissive,
+# not disabled, so the installed system keeps SELinux.
+label: "BOOTC_UFFICIO"
+grub2:
+  entries:
+    - name: "Install bootc-fedora-ufficio"
+      linux: "/images/pxeboot/vmlinuz inst.stage2=hd:LABEL=BOOTC_UFFICIO console=tty0 inst.graphical enforcing=0 rhgb quiet"
+      initrd: "/images/pxeboot/initrd.img"

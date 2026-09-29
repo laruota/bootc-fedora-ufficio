@@ -1,0 +1,9 @@
+.cache/
+.thumbnails/
+.local/share/Trash/
+*.tmp
+*.swp
+.*.swp
+*.log
+Scaricati/
+Downloads/

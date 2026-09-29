@@ -1,0 +1,96 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'README.md'
+      - 'PLAN.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'Makefile'
+      - 'scripts/push.sh'
+      - 'iso/**'
+      - '.github/**'
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+      - 'PLAN.md'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'Makefile'
+      - 'scripts/push.sh'
+      - 'iso/**'
+      - '.github/**'
+  workflow_dispatch:
+    inputs:
+      fedora_version:
+        description: 'Fedora version to build (empty = ARG del Containerfile)'
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/bootc-fedora-ufficio
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: ShellCheck scripts
+        run: make shellcheck
+
+      - name: Resolve Fedora version
+        id: ver
+        env:
+          REQUESTED_FEDORA_VERSION: ${{ inputs.fedora_version }}
+        run: |
+          V="${REQUESTED_FEDORA_VERSION:-}"
+          if [ -n "$V" ] && ! [[ "$V" =~ ^[0-9]+$ ]]; then
+            echo "fedora_version deve essere un intero positivo" >&2
+            exit 1
+          fi
+          [ -n "$V" ] || V="$(sed -n 's/^ARG FEDORA_VERSION=//p' Containerfile)"
+          [[ "$V" =~ ^[0-9]+$ ]] || { echo "ARG FEDORA_VERSION non valido" >&2; exit 1; }
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to ghcr.io
+        if: github.event_name != 'pull_request'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build image
+        env:
+          PUSH_CACHE: ${{ github.event_name != 'pull_request' }}
+        run: |
+          cache_args=()
+          if [ "$PUSH_CACHE" = "true" ]; then
+            cache_args=(--cache-to "$IMAGE")
+          fi
+          podman build \
+            --layers \
+            --cache-from "$IMAGE" \
+            "${cache_args[@]}" \
+            --build-arg "FEDORA_VERSION=${{ steps.ver.outputs.version }}" \
+            --build-arg "SOURCE_COMMIT=${{ github.sha }}" \
+            --build-arg "VERSION=${{ steps.ver.outputs.version }}" \
+            -t "$IMAGE:${{ steps.ver.outputs.version }}" \
+            -t "$IMAGE:latest" .
+
+      - name: Smoke test image
+        run: make smoke IMAGE="$IMAGE" TAG="${{ steps.ver.outputs.version }}"
+
+      - name: Push image
+        if: github.event_name != 'pull_request'
+        run: |
+          podman push "$IMAGE:${{ steps.ver.outputs.version }}"
+          podman push "$IMAGE:latest"

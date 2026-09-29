@@ -1,0 +1,5 @@
+output/
+*.qcow2
+*.img
+*.iso
+iso.ks
