@@ -50,25 +50,25 @@ scripts, Proxmox client, polkit, kargs `rhgb quiet`.
 ## Pubblicazione su ghcr.io
 
 La GitHub Action `.github/workflows/build.yml` builda e pubblica su
-`ghcr.io/catoblepa/bootc-fedora-ufficio:<FEDORA_VERSION>` e `:latest` a ogni push
+`ghcr.io/laruota/bootc-fedora-ufficio:<FEDORA_VERSION>` e `:latest` a ogni push
 su `main` (e su `workflow_dispatch`). Tag mutabili. Il package deve essere
 **pubblico** per il pull anonimo del deploy.
 
-    make push ORG=catoblepa
-    podman pull ghcr.io/catoblepa/bootc-fedora-ufficio:45
+    make push ORG=laruota
+    podman pull ghcr.io/laruota/bootc-fedora-ufficio:45
 
 ## ISO (installazione)
 
 `make installer` costruisce il container installer; `make iso` genera l'ISO con
 `image-builder` (`bootc-generic-iso`) in `output/`. L'ISO installa
-`ghcr.io/catoblepa/bootc-fedora-ufficio:45` (vedi `iso/interactive-defaults.ks`).
+`ghcr.io/laruota/bootc-fedora-ufficio:45` (vedi `iso/interactive-defaults.ks`).
 
     make installer
     make iso
 
 ## Aggiornamenti sulla target
 
-    bootc switch ghcr.io/catoblepa/bootc-fedora-ufficio:45
+    bootc switch ghcr.io/laruota/bootc-fedora-ufficio:45
     bootc upgrade
 
 ## Prompt grafico LUKS e SELinux

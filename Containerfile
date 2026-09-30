@@ -22,8 +22,8 @@ ARG SOURCE_COMMIT=""
 
 LABEL org.opencontainers.image.title="bootc-fedora-ufficio" \
       org.opencontainers.image.description="Custom GNOME bootc image for the office based on Fedora Silverblue" \
-      org.opencontainers.image.source="https://github.com/catoblepa/bootc-fedora-ufficio" \
-      org.opencontainers.image.vendor="catoblepa" \
+      org.opencontainers.image.source="https://github.com/laruota/bootc-fedora-ufficio" \
+      org.opencontainers.image.vendor="laruota" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${SOURCE_COMMIT}" \
       org.opencontainers.image.licenses="GPL-3.0-only"
